@@ -12,6 +12,7 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.example.model.DocumentItem
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -182,5 +183,83 @@ object FileUtils {
             if (uri != null) count++
         }
         return count
+    }
+
+    fun scanDeviceDocuments(context: Context): List<DocumentItem> {
+        val found = mutableListOf<DocumentItem>()
+        try {
+            val uri = MediaStore.Files.getContentUri("external")
+            val projection = arrayOf(
+                MediaStore.Files.FileColumns._ID,
+                MediaStore.Files.FileColumns.DISPLAY_NAME,
+                MediaStore.Files.FileColumns.SIZE,
+                MediaStore.Files.FileColumns.MIME_TYPE
+            )
+            val selection = "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.pdf' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.pptx' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.ppt' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.docx' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.doc' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.xlsx' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.xls' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.csv' OR " +
+                    "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE '%.txt'"
+            
+            context.contentResolver.query(uri, projection, selection, null, "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC")?.use { cursor ->
+                val idCol = cursor.getColumnIndex(MediaStore.Files.FileColumns._ID)
+                val nameCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                val sizeCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+                val mimeCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE)
+                
+                var count = 0
+                while (cursor.moveToNext() && count < 50) {
+                    val id = if (idCol != -1) cursor.getLong(idCol) else continue
+                    val name = if (nameCol != -1) cursor.getString(nameCol) ?: continue else continue
+                    val size = if (sizeCol != -1) cursor.getLong(sizeCol) else 0L
+                    val mime = if (mimeCol != -1) cursor.getString(mimeCol) ?: "*/*" else "*/*"
+                    val contentUri = android.content.ContentUris.withAppendedId(uri, id)
+                    
+                    found.add(
+                        DocumentItem(
+                            name = name,
+                            uri = contentUri,
+                            sizeBytes = size,
+                            mimeType = mime
+                        )
+                    )
+                    count++
+                }
+            }
+        } catch (e: Throwable) {
+            // In case of scoped storage, emulator restrictions or security exceptions
+            e.printStackTrace()
+        }
+        return found
+    }
+
+    fun loadAllAvailableDocuments(context: Context): List<DocumentItem> {
+        val allDocs = mutableListOf<DocumentItem>()
+        // 1. First ensure sample documents in app storage are ready
+        try {
+            val samples = SampleDocGenerator.ensureSampleDocuments(context)
+            allDocs.addAll(samples)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+
+        // 2. Safely scan MediaStore
+        try {
+            val scanned = scanDeviceDocuments(context)
+            val existingNames = allDocs.map { it.name }.toSet()
+            for (item in scanned) {
+                if (!existingNames.contains(item.name)) {
+                    allDocs.add(item)
+                }
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+
+        return allDocs
     }
 }

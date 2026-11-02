@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -33,15 +36,19 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.Transform
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,6 +65,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,6 +100,9 @@ import com.example.ui.theme.ColorExcel
 import com.example.ui.theme.ColorPdf
 import com.example.ui.theme.ColorPpt
 import com.example.ui.theme.ColorWord
+import com.example.ui.theme.CosmicNeonCyan
+import com.example.ui.theme.CosmicTextPrimary
+import com.example.ui.theme.CosmicTextSecondary
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.VioletSecondary
 import com.example.viewmodel.DocMasterViewModel
@@ -112,20 +123,231 @@ fun DocumentViewerScreen(
     val pptDoc by viewModel.viewingPpt.collectAsState()
     val textDoc by viewModel.viewingText.collectAsState()
 
-    var isFullscreen by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(true) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameInput by remember { mutableStateOf("") }
+
+    val allDocs by viewModel.allDeviceDocuments.collectAsState()
+    val pickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.importDocumentAndOpen(it) }
+    }
 
     if (item == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
         ) {
-            Text("No document loaded for preview.")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = CosmicTextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Document Viewer",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = CosmicTextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x45A855F7))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x3538BDF8)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = null,
+                            tint = CosmicNeonCyan,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "View Mobile Documents",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = CosmicTextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Browse your phone's storage, Downloads, or SD card to view PDF, Word, PowerPoint, Excel, and Text without converting.",
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = CosmicTextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = {
+                            pickerLauncher.launch(
+                                arrayOf(
+                                    "application/pdf",
+                                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                    "application/vnd.ms-powerpoint",
+                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    "application/msword",
+                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    "application/vnd.ms-excel",
+                                    "text/*",
+                                    "*/*"
+                                )
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Browse Mobile Files", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            if (allDocs.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "Detected Mobile Documents (${allDocs.size})",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = CosmicTextPrimary
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(allDocs) { doc ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.openDocumentInViewer(doc) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0x22180C3D)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x22E9D5FF))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = CosmicNeonCyan,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = doc.name,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = CosmicTextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = FileUtils.formatFileSize(doc.sizeBytes),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = CosmicTextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         return
     }
 
     val file = item.tempFilePath?.let { File(it) }
     val ext = file?.extension?.lowercase() ?: "pdf"
+
+    // Rename Dialog
+    if (showRenameDialog && file != null) {
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = {
+                Text("Rename Document", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column {
+                    Text(
+                        "Enter new filename:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = renameInput,
+                        onValueChange = { renameInput = it },
+                        singleLine = true,
+                        label = { Text("Name") },
+                        trailingIcon = {
+                            if (ext.isNotEmpty()) {
+                                Text(
+                                    text = ".$ext",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = renameInput.trim()
+                        if (trimmed.isNotBlank()) {
+                            val renamed = viewModel.renameOutputFile(file, trimmed)
+                            if (renamed != null) {
+                                Toast.makeText(context, "Renamed to ${renamed.name}", Toast.LENGTH_SHORT).show()
+                            }
+                            showRenameDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -138,6 +360,7 @@ fun DocumentViewerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
+                    .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -148,12 +371,34 @@ fun DocumentViewerScreen(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (file != null && file.exists()) {
+                            IconButton(
+                                onClick = {
+                                    renameInput = item.nameWithoutExtension()
+                                    showRenameDialog = true
+                                },
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .padding(start = 4.dp)
+                                    .testTag("viewer_rename_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Rename file",
+                                    tint = IndigoPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = "${ext.uppercase()} • ${FileUtils.formatFileSize(item.sizeBytes)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -213,14 +458,19 @@ fun DocumentViewerScreen(
                 }
                 "xlsx", "xls", "csv" -> {
                     if (excelDoc != null) {
-                        ExcelDocumentView(workbook = excelDoc!!, onExportPdf = {
-                            val out = File(context.cacheDir, "${item.nameWithoutExtension()}.pdf")
-                            excelDoc!!.sheets.firstOrNull()?.let { sheet ->
-                                if (OfficeEngine.exportExcelToPdf(sheet, out)) {
-                                    FileUtils.shareFile(context, out, "application/pdf")
+                        ExcelDocumentView(
+                            workbook = excelDoc!!,
+                            isFullscreen = isFullscreen,
+                            onToggleFullscreen = { isFullscreen = !isFullscreen },
+                            onExportPdf = {
+                                val out = File(context.cacheDir, "${item.nameWithoutExtension()}.pdf")
+                                excelDoc!!.sheets.firstOrNull()?.let { sheet ->
+                                    if (OfficeEngine.exportExcelToPdf(sheet, out)) {
+                                        FileUtils.shareFile(context, out, "application/pdf")
+                                    }
                                 }
                             }
-                        })
+                        )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("Loading spreadsheet rows...")
@@ -229,12 +479,17 @@ fun DocumentViewerScreen(
                 }
                 "docx", "doc" -> {
                     if (wordDoc != null) {
-                        WordDocumentView(doc = wordDoc!!, onExportPdf = {
-                            val out = File(context.cacheDir, "${item.nameWithoutExtension()}.pdf")
-                            if (OfficeEngine.exportWordToPdf(wordDoc!!, out)) {
-                                FileUtils.shareFile(context, out, "application/pdf")
+                        WordDocumentView(
+                            doc = wordDoc!!,
+                            isFullscreen = isFullscreen,
+                            onToggleFullscreen = { isFullscreen = !isFullscreen },
+                            onExportPdf = {
+                                val out = File(context.cacheDir, "${item.nameWithoutExtension()}.pdf")
+                                if (OfficeEngine.exportWordToPdf(wordDoc!!, out)) {
+                                    FileUtils.shareFile(context, out, "application/pdf")
+                                }
                             }
-                        })
+                        )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("Loading Word document...")
@@ -243,12 +498,17 @@ fun DocumentViewerScreen(
                 }
                 "pptx", "ppt" -> {
                     if (pptDoc != null) {
-                        PptDocumentView(ppt = pptDoc!!, isFullscreen = isFullscreen, onExportPdf = {
-                            val out = File(context.cacheDir, "${item.nameWithoutExtension()}.pdf")
-                            if (OfficeEngine.exportPptToPdf(pptDoc!!, out)) {
-                                FileUtils.shareFile(context, out, "application/pdf")
+                        PptDocumentView(
+                            ppt = pptDoc!!,
+                            isFullscreen = isFullscreen,
+                            onToggleFullscreen = { isFullscreen = !isFullscreen },
+                            onExportPdf = {
+                                val out = File(context.cacheDir, "${item.nameWithoutExtension()}.pdf")
+                                if (OfficeEngine.exportPptToPdf(pptDoc!!, out)) {
+                                    FileUtils.shareFile(context, out, "application/pdf")
+                                }
                             }
-                        })
+                        )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("Loading presentation slides...")
@@ -258,7 +518,11 @@ fun DocumentViewerScreen(
                 else -> {
                     // Plain text / Code viewer
                     if (textDoc != null) {
-                        TextDocumentView(textDoc = textDoc!!)
+                        TextDocumentView(
+                            textDoc = textDoc!!,
+                            isFullscreen = isFullscreen,
+                            onToggleFullscreen = { isFullscreen = !isFullscreen }
+                        )
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("Loading text...")
@@ -297,7 +561,12 @@ private fun DocumentItem.nameWithoutExtension(): String {
 }
 
 @Composable
-fun ExcelDocumentView(workbook: ExcelWorkbook, onExportPdf: () -> Unit) {
+fun ExcelDocumentView(
+    workbook: ExcelWorkbook,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onExportPdf: () -> Unit
+) {
     var selectedSheetIdx by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
     val currentSheet = workbook.sheets.getOrNull(selectedSheetIdx) ?: workbook.sheets.first()
@@ -308,51 +577,57 @@ fun ExcelDocumentView(workbook: ExcelWorkbook, onExportPdf: () -> Unit) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Sheet Tabs
-        if (workbook.sheets.size > 1) {
-            ScrollableTabRow(
-                selectedTabIndex = selectedSheetIdx,
-                edgePadding = 16.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                workbook.sheets.forEachIndexed { index, sheet ->
-                    Tab(
-                        selected = selectedSheetIdx == index,
-                        onClick = { selectedSheetIdx = index },
-                        text = { Text(sheet.name, fontWeight = FontWeight.Bold) }
-                    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onToggleFullscreen() }
+    ) {
+        if (!isFullscreen) {
+            // Sheet Tabs
+            if (workbook.sheets.size > 1) {
+                ScrollableTabRow(
+                    selectedTabIndex = selectedSheetIdx,
+                    edgePadding = 16.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    workbook.sheets.forEachIndexed { index, sheet ->
+                        Tab(
+                            selected = selectedSheetIdx == index,
+                            onClick = { selectedSheetIdx = index },
+                            text = { Text(sheet.name, fontWeight = FontWeight.Bold) }
+                        )
+                    }
                 }
             }
-        }
 
-        // Search & Export Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search cells...") },
-                modifier = Modifier.weight(1f),
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Button(
-                onClick = onExportPdf,
-                colors = ButtonDefaults.buttonColors(containerColor = ColorExcel),
-                shape = RoundedCornerShape(12.dp)
+            // Search & Export Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Export PDF", fontSize = 12.sp)
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search cells...") },
+                    modifier = Modifier.weight(1f),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Button(
+                    onClick = onExportPdf,
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorExcel),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Export PDF", fontSize = 12.sp)
+                }
             }
         }
 
@@ -361,7 +636,7 @@ fun ExcelDocumentView(workbook: ExcelWorkbook, onExportPdf: () -> Unit) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = if (isFullscreen) 0.dp else 16.dp)
                 .horizontalScroll(rememberScrollState())
         ) {
             LazyColumn(
@@ -419,29 +694,40 @@ fun ExcelDocumentView(workbook: ExcelWorkbook, onExportPdf: () -> Unit) {
 }
 
 @Composable
-fun WordDocumentView(doc: WordDocument, onExportPdf: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Document View",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
-
-            Button(
-                onClick = onExportPdf,
-                colors = ButtonDefaults.buttonColors(containerColor = ColorWord),
-                shape = RoundedCornerShape(12.dp)
+fun WordDocumentView(
+    doc: WordDocument,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onExportPdf: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onToggleFullscreen() }
+    ) {
+        if (!isFullscreen) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Export PDF", fontSize = 12.sp)
+                Text(
+                    text = "Document View",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Button(
+                    onClick = onExportPdf,
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorWord),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Export PDF", fontSize = 12.sp)
+                }
             }
         }
 
@@ -450,15 +736,15 @@ fun WordDocumentView(doc: WordDocument, onExportPdf: () -> Unit) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(12.dp),
+                .padding(if (isFullscreen) 0.dp else 16.dp),
+            shape = if (isFullscreen) RoundedCornerShape(0.dp) else RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isFullscreen) 0.dp else 2.dp)
         ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
+                    .padding(if (isFullscreen) 12.dp else 20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(doc.elements) { element ->
@@ -492,11 +778,20 @@ fun WordDocumentView(doc: WordDocument, onExportPdf: () -> Unit) {
 }
 
 @Composable
-fun PptDocumentView(ppt: PptPresentation, isFullscreen: Boolean, onExportPdf: () -> Unit) {
+fun PptDocumentView(
+    ppt: PptPresentation,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onExportPdf: () -> Unit
+) {
     var currentSlideIdx by remember { mutableIntStateOf(0) }
     val currentSlide = ppt.slides.getOrNull(currentSlideIdx) ?: ppt.slides.first()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (isFullscreen) Color(0xFF0F172A) else MaterialTheme.colorScheme.background)
+    ) {
         if (!isFullscreen) {
             Row(
                 modifier = Modifier
@@ -527,27 +822,45 @@ fun PptDocumentView(ppt: PptPresentation, isFullscreen: Boolean, onExportPdf: ()
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(if (isFullscreen) 0.dp else 16.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { offset ->
+                            if (isFullscreen && ppt.slides.size > 1 && offset.x < 150f && currentSlideIdx > 0) {
+                                currentSlideIdx--
+                            } else if (isFullscreen && ppt.slides.size > 1 && offset.x > 850f && currentSlideIdx < ppt.slides.size - 1) {
+                                currentSlideIdx++
+                            } else {
+                                onToggleFullscreen()
+                            }
+                        }
+                    )
+                },
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(340.dp),
-                shape = RoundedCornerShape(16.dp),
+                    .then(if (isFullscreen) Modifier.fillMaxSize() else Modifier.height(340.dp)),
+                shape = if (isFullscreen) RoundedCornerShape(0.dp) else RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isFullscreen) 0.dp else 8.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Top presentation accent banner
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(10.dp)
+                            .height(if (isFullscreen) 6.dp else 10.dp)
                             .background(ColorPpt)
                     )
 
-                    Column(modifier = Modifier.padding(24.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(if (isFullscreen) 20.dp else 24.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         Text(
                             text = currentSlide.title,
                             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
@@ -558,7 +871,7 @@ fun PptDocumentView(ppt: PptPresentation, isFullscreen: Boolean, onExportPdf: ()
 
                         currentSlide.contentLines.forEach { line ->
                             Row(
-                                modifier = Modifier.padding(vertical = 4.dp),
+                                modifier = Modifier.padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
@@ -580,53 +893,65 @@ fun PptDocumentView(ppt: PptPresentation, isFullscreen: Boolean, onExportPdf: ()
             }
         }
 
-        // Slide Navigation Carousel
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedButton(
-                onClick = { if (currentSlideIdx > 0) currentSlideIdx-- },
-                enabled = currentSlideIdx > 0
+        // Slide Navigation Carousel (only when not in fullscreen)
+        if (!isFullscreen) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = null)
-                Text("Previous")
-            }
+                OutlinedButton(
+                    onClick = { if (currentSlideIdx > 0) currentSlideIdx-- },
+                    enabled = currentSlideIdx > 0
+                ) {
+                    Icon(Icons.Default.ChevronLeft, contentDescription = null)
+                    Text("Previous")
+                }
 
-            Text(
-                "${currentSlideIdx + 1} / ${ppt.slides.size}",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-            )
+                Text(
+                    "${currentSlideIdx + 1} / ${ppt.slides.size}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                )
 
-            OutlinedButton(
-                onClick = { if (currentSlideIdx < ppt.slides.size - 1) currentSlideIdx++ },
-                enabled = currentSlideIdx < ppt.slides.size - 1
-            ) {
-                Text("Next")
-                Icon(Icons.Default.ChevronRight, contentDescription = null)
+                OutlinedButton(
+                    onClick = { if (currentSlideIdx < ppt.slides.size - 1) currentSlideIdx++ },
+                    enabled = currentSlideIdx < ppt.slides.size - 1
+                ) {
+                    Text("Next")
+                    Icon(Icons.Default.ChevronRight, contentDescription = null)
+                }
             }
         }
     }
 }
 
 @Composable
-fun TextDocumentView(textDoc: TextDocument) {
-    Column(modifier = Modifier.fillMaxSize()) {
+fun TextDocumentView(
+    textDoc: TextDocument,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onToggleFullscreen() }
+    ) {
         // Stats bar
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+        if (!isFullscreen) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ) {
-                Text("Lines: ${textDoc.lineCount}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                Text("Words: ${textDoc.wordCount}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                Text("Characters: ${textDoc.charCount}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text("Lines: ${textDoc.lineCount}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    Text("Words: ${textDoc.wordCount}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    Text("Characters: ${textDoc.charCount}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
@@ -634,7 +959,7 @@ fun TextDocumentView(textDoc: TextDocument) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp)
+                .padding(if (isFullscreen) 8.dp else 12.dp)
         ) {
             itemsIndexed(textDoc.lines) { index, line ->
                 Row(modifier = Modifier.fillMaxWidth()) {

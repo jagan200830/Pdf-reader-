@@ -33,4 +33,24 @@ object ZipEngine {
             false
         }
     }
+
+    fun createZipFromEntries(entries: Map<String, String>, outputFile: File): Boolean {
+        return try {
+            outputFile.parentFile?.mkdirs()
+            FileOutputStream(outputFile).use { fos ->
+                ZipOutputStream(fos).use { zos ->
+                    for ((entryPath, content) in entries) {
+                        val zipEntry = ZipEntry(entryPath)
+                        zos.putNextEntry(zipEntry)
+                        zos.write(content.toByteArray(Charsets.UTF_8))
+                        zos.closeEntry()
+                    }
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

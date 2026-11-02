@@ -74,9 +74,20 @@ import com.example.model.DocumentItem
 import com.example.model.ToolCategory
 import com.example.ui.components.HeroUploadSection
 import com.example.ui.components.ToolCard
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.FolderOpen
 import com.example.ui.theme.ColorExcel
 import com.example.ui.theme.ColorPdf
+import com.example.ui.theme.ColorPpt
 import com.example.ui.theme.ColorWord
+import com.example.viewmodel.ScreenState
+import com.example.ui.theme.CosmicNeonCyan
+import com.example.ui.theme.CosmicNeonMagenta
+import com.example.ui.theme.CosmicNeonPurple
+import com.example.ui.theme.CosmicTextMuted
+import com.example.ui.theme.CosmicTextPrimary
+import com.example.ui.theme.CosmicTextSecondary
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.VioletSecondary
 import com.example.viewmodel.DocMasterViewModel
@@ -95,6 +106,7 @@ fun DashboardScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val recentFiles by viewModel.recentFiles.collectAsState()
+    val allDeviceDocs by viewModel.allDeviceDocuments.collectAsState()
     var isGridView by remember { mutableStateOf(false) }
 
     // File picker launcher for hero upload
@@ -102,19 +114,20 @@ fun DashboardScreen(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            viewModel.addFiles(uris)
-            // Open universal document viewer or image to pdf tool
             val firstUri = uris.first()
             val fileName = FileUtils.getFileName(context.contentResolver, firstUri) ?: ""
             if (fileName.endsWith(".pdf", ignoreCase = true) ||
                 fileName.endsWith(".docx", ignoreCase = true) ||
                 fileName.endsWith(".xlsx", ignoreCase = true) ||
                 fileName.endsWith(".pptx", ignoreCase = true) ||
-                fileName.endsWith(".txt", ignoreCase = true)) {
-                DocTool.ALL_TOOLS.find { it.id == com.example.model.ToolId.VIEW_DOCUMENT }?.let {
-                    onOpenTool(it)
-                }
+                fileName.endsWith(".txt", ignoreCase = true) ||
+                fileName.endsWith(".doc", ignoreCase = true) ||
+                fileName.endsWith(".xls", ignoreCase = true) ||
+                fileName.endsWith(".ppt", ignoreCase = true) ||
+                fileName.endsWith(".csv", ignoreCase = true)) {
+                viewModel.importDocumentAndOpen(firstUri)
             } else {
+                viewModel.addFiles(uris)
                 DocTool.ALL_TOOLS.find { it.id == com.example.model.ToolId.IMAGE_TO_PDF }?.let {
                     onOpenTool(it)
                 }
@@ -149,6 +162,130 @@ fun DashboardScreen(
             )
         }
 
+        // All Documents Hub (Device Files Viewer)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clickable { viewModel.setScreen(ScreenState.ALL_DOCUMENTS) },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+                border = BorderStroke(
+                    1.dp,
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(Color(0x5538BDF8), Color(0x55A855F7), Color(0x35EC4899))
+                    )
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(Color(0x3038BDF8)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = null,
+                                tint = CosmicNeonCyan,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "All Documents Viewer",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = CosmicTextPrimary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0x2838BDF8)
+                                ) {
+                                    Text(
+                                        text = "${allDeviceDocs.size} Ready",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
+                                        color = CosmicNeonCyan,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "View PDF, PPTX, Word & Excel without converting",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = CosmicTextSecondary
+                            )
+                        }
+
+                        TextButton(
+                            onClick = { viewModel.setScreen(ScreenState.ALL_DOCUMENTS) }
+                        ) {
+                            Text("See All", color = CosmicNeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+
+                    if (allDeviceDocs.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            for (doc in allDeviceDocs.take(6)) {
+                                val ext = doc.name.substringAfterLast(".", "").lowercase()
+                                val chipColor = when (ext) {
+                                    "pdf" -> ColorPdf
+                                    "pptx", "ppt" -> ColorPpt
+                                    "docx", "doc" -> ColorWord
+                                    "xlsx", "xls", "csv" -> ColorExcel
+                                    else -> CosmicNeonPurple
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = chipColor.copy(alpha = 0.15f),
+                                    border = BorderStroke(0.8.dp, chipColor.copy(alpha = 0.35f)),
+                                    modifier = Modifier.clickable { onViewDocument(doc) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(7.dp)
+                                                .clip(CircleShape)
+                                                .background(chipColor)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = doc.name,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                            color = CosmicTextPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.widthIn(max = 140.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Search Bar
         item {
             Box(
@@ -162,21 +299,26 @@ fun DashboardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("tool_search_input"),
-                    placeholder = { Text("Search tools (e.g. compress, merge, word, excel)...") },
+                    placeholder = { Text("Search tools (e.g. compress, merge, word, excel)...", color = CosmicTextMuted) },
                     leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = IndigoPrimary)
+                        Icon(Icons.Default.Search, contentDescription = null, tint = CosmicNeonPurple)
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                                Icon(Icons.Default.Clear, contentDescription = "Clear search", tint = CosmicTextSecondary)
                             }
                         }
                     },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = IndigoPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        focusedContainerColor = Color(0x351F104D),
+                        unfocusedContainerColor = Color(0x281B0E3D),
+                        focusedBorderColor = CosmicNeonPurple,
+                        unfocusedBorderColor = Color(0x35E9D5FF),
+                        focusedTextColor = CosmicTextPrimary,
+                        unfocusedTextColor = CosmicTextPrimary,
+                        cursorColor = CosmicNeonPurple
                     ),
                     singleLine = true
                 )
@@ -203,8 +345,16 @@ fun DashboardScreen(
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = IndigoPrimary,
-                            selectedLabelColor = Color.White
+                            selectedContainerColor = CosmicNeonPurple,
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0x251C0F45),
+                            labelColor = CosmicTextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedCategory == category,
+                            borderColor = Color(0x25E9D5FF),
+                            selectedBorderColor = CosmicNeonPurple
                         ),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.testTag("category_chip_${category.name.lowercase()}")
@@ -224,32 +374,33 @@ fun DashboardScreen(
                 Text(
                     text = "${selectedCategory.title} (${filteredTools.size})",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = CosmicTextPrimary
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
                 // Toggle layout button: List View vs Grid View
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0x281C0E45),
+                    border = BorderStroke(0.8.dp, Color(0x25E9D5FF))
                 ) {
                     Row(
-                        modifier = Modifier.padding(2.dp),
+                        modifier = Modifier.padding(3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
                             onClick = { isGridView = false },
                             modifier = Modifier
                                 .size(32.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (!isGridView) IndigoPrimary else Color.Transparent)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (!isGridView) CosmicNeonPurple else Color.Transparent)
                                 .testTag("view_mode_list")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ViewList,
                                 contentDescription = "List View",
-                                tint = if (!isGridView) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (!isGridView) Color.White else CosmicTextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -258,14 +409,14 @@ fun DashboardScreen(
                             onClick = { isGridView = true },
                             modifier = Modifier
                                 .size(32.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isGridView) IndigoPrimary else Color.Transparent)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isGridView) CosmicNeonPurple else Color.Transparent)
                                 .testTag("view_mode_grid")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.GridView,
                                 contentDescription = "Grid View",
-                                tint = if (isGridView) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isGridView) Color.White else CosmicTextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -386,14 +537,15 @@ fun RecentFileItemRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 5.dp)
             .clickable { onOpen() }
             .testTag("recent_file_${entity.id}"),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color(0x35190C3D)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(1.dp, Color(0x25E9D5FF)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -403,15 +555,15 @@ fun RecentFileItemRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(
                         when (entity.fileType) {
-                            "PDF" -> ColorPdf.copy(alpha = 0.15f)
-                            "JPG", "PNG", "WEBP" -> VioletSecondary.copy(alpha = 0.15f)
-                            "CSV", "XLSX" -> ColorExcel.copy(alpha = 0.15f)
-                            "DOCX" -> ColorWord.copy(alpha = 0.15f)
-                            else -> IndigoPrimary.copy(alpha = 0.15f)
+                            "PDF" -> ColorPdf.copy(alpha = 0.2f)
+                            "JPG", "PNG", "WEBP" -> CosmicNeonPurple.copy(alpha = 0.2f)
+                            "CSV", "XLSX" -> ColorExcel.copy(alpha = 0.2f)
+                            "DOCX" -> ColorWord.copy(alpha = 0.2f)
+                            else -> CosmicNeonCyan.copy(alpha = 0.2f)
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -426,10 +578,10 @@ fun RecentFileItemRow(
                     contentDescription = null,
                     tint = when (entity.fileType) {
                         "PDF" -> ColorPdf
-                        "JPG", "PNG", "WEBP" -> VioletSecondary
+                        "JPG", "PNG", "WEBP" -> CosmicNeonPurple
                         "CSV", "XLSX" -> ColorExcel
                         "DOCX" -> ColorWord
-                        else -> IndigoPrimary
+                        else -> CosmicNeonCyan
                     },
                     modifier = Modifier.size(22.dp)
                 )
@@ -443,12 +595,12 @@ fun RecentFileItemRow(
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = CosmicTextPrimary
                 )
                 Text(
                     text = "${entity.toolType} • ${FileUtils.formatFileSize(entity.processedSizeBytes)} • ${SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(entity.timestamp))}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = CosmicTextSecondary,
                     fontSize = 11.sp
                 )
             }

@@ -36,6 +36,7 @@ enum class ScreenState {
     TOOL_WORKBENCH,
     DOCUMENT_VIEWER,
     HISTORY,
+    ALL_DOCUMENTS,
     ABOUT
 }
 
@@ -46,6 +47,12 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
 
     val recentFiles: StateFlow<List<ProcessedFileEntity>> = historyDao.getAllHistory()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    private val _allDeviceDocuments = MutableStateFlow<List<DocumentItem>>(emptyList())
+    val allDeviceDocuments: StateFlow<List<DocumentItem>> = _allDeviceDocuments.asStateFlow()
+
+    private val _isLoadingDocuments = MutableStateFlow(false)
+    val isLoadingDocuments: StateFlow<Boolean> = _isLoadingDocuments.asStateFlow()
 
     private val _screenState = MutableStateFlow(ScreenState.DASHBOARD)
     val screenState = _screenState.asStateFlow()
@@ -90,8 +97,73 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
     private val _viewingText = MutableStateFlow<TextDocument?>(null)
     val viewingText = _viewingText.asStateFlow()
 
-    private val _isDarkMode = MutableStateFlow(false)
+    private val _isDarkMode = MutableStateFlow(true)
     val isDarkMode = _isDarkMode.asStateFlow()
+
+    init {
+        loadAllDocuments()
+    }
+
+    fun loadAllDocuments() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<Application>()
+                val docs = FileUtils.loadAllAvailableDocuments(context)
+                withContext(Dispatchers.Main) {
+                    _allDeviceDocuments.value = docs
+                    _isLoadingDocuments.value = false
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    _isLoadingDocuments.value = false
+                }
+            }
+        }
+    }
+
+    fun importDocumentAndOpen(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            try {
+                val tempFile = FileUtils.copyUriToTempFile(context, uri, customPrefix = "imported_")
+                val fileName = FileUtils.getFileName(context.contentResolver, uri) ?: tempFile.name
+                val size = tempFile.length()
+                val mimeType = context.contentResolver.getType(uri) ?: when (tempFile.extension.lowercase()) {
+                    "pdf" -> "application/pdf"
+                    "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    "doc" -> "application/msword"
+                    "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    "xls" -> "application/vnd.ms-excel"
+                    "csv" -> "text/csv"
+                    "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    "ppt" -> "application/vnd.ms-powerpoint"
+                    else -> "text/plain"
+                }
+
+                var pageCount = 1
+                if (tempFile.extension.lowercase() == "pdf") {
+                    pageCount = PdfEngine.getPdfPageCount(tempFile)
+                }
+
+                val docItem = DocumentItem(
+                    name = fileName,
+                    uri = uri,
+                    sizeBytes = size,
+                    mimeType = mimeType,
+                    pageCount = pageCount,
+                    tempFilePath = tempFile.absolutePath
+                )
+
+                withContext(Dispatchers.Main) {
+                    _allDeviceDocuments.value = listOf(docItem) + _allDeviceDocuments.value.filter { it.name != fileName }
+                    openDocumentInViewer(docItem)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     fun toggleDarkMode() {
         _isDarkMode.value = !_isDarkMode.value
@@ -113,7 +185,11 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
         _activeTool.value = tool
         _lastResult.value = null
         if (tool.isViewerOnly) {
-            _screenState.value = ScreenState.DOCUMENT_VIEWER
+            if (_viewingDoc.value == null && _allDeviceDocuments.value.isNotEmpty()) {
+                openDocumentInViewer(_allDeviceDocuments.value.first())
+            } else {
+                _screenState.value = ScreenState.DOCUMENT_VIEWER
+            }
         } else {
             _screenState.value = ScreenState.TOOL_WORKBENCH
         }
@@ -124,6 +200,7 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
             ScreenState.TOOL_WORKBENCH,
             ScreenState.DOCUMENT_VIEWER,
             ScreenState.HISTORY,
+            ScreenState.ALL_DOCUMENTS,
             ScreenState.ABOUT -> {
                 _screenState.value = ScreenState.DASHBOARD
                 _activeTool.value = null
@@ -191,16 +268,78 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
         _lastResult.value = null
     }
 
+    fun handleIncomingUri(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            try {
+                val tempFile = FileUtils.copyUriToTempFile(context, uri)
+                val fileName = FileUtils.getFileName(context.contentResolver, uri) ?: tempFile.name
+                val size = tempFile.length()
+                val mimeType = context.contentResolver.getType(uri) ?: when (tempFile.extension.lowercase()) {
+                    "pdf" -> "application/pdf"
+                    "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    "doc" -> "application/msword"
+                    "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    "xls" -> "application/vnd.ms-excel"
+                    "csv" -> "text/csv"
+                    "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    "ppt" -> "application/vnd.ms-powerpoint"
+                    "jpg", "jpeg" -> "image/jpeg"
+                    "png" -> "image/png"
+                    "webp" -> "image/webp"
+                    else -> "text/plain"
+                }
+
+                var pageCount = 1
+                var thumbnail: Bitmap? = null
+
+                if (tempFile.extension.lowercase() == "pdf") {
+                    pageCount = PdfEngine.getPdfPageCount(tempFile)
+                    thumbnail = PdfEngine.renderPdfPageToBitmap(tempFile, 0, 0.5f)
+                }
+
+                val docItem = DocumentItem(
+                    name = fileName,
+                    uri = uri,
+                    sizeBytes = size,
+                    mimeType = mimeType,
+                    pageCount = pageCount,
+                    thumbnailBitmap = thumbnail,
+                    tempFilePath = tempFile.absolutePath
+                )
+
+                withContext(Dispatchers.Main) {
+                    openDocumentInViewer(docItem)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun openDocumentInViewer(item: DocumentItem) {
         _viewingDoc.value = item
         _screenState.value = ScreenState.DOCUMENT_VIEWER
 
-        val filePath = item.tempFilePath ?: return
-        val file = File(filePath)
-        if (!file.exists()) return
-
-        val ext = file.extension.lowercase()
         viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            var file: File? = item.tempFilePath?.let { File(it) }
+            if (file == null || !file.exists()) {
+                if (item.uri != Uri.EMPTY) {
+                    try {
+                        file = FileUtils.copyUriToTempFile(context, item.uri)
+                        val resolvedPath = file.absolutePath
+                        withContext(Dispatchers.Main) {
+                            _viewingDoc.value = item.copy(tempFilePath = resolvedPath)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+            if (file == null || !file.exists()) return@launch
+
+            val ext = file.extension.lowercase()
             when {
                 ext in listOf("xlsx", "xls", "csv") -> {
                     val workbook = OfficeEngine.parseExcelWorkbook(file)
@@ -535,7 +674,22 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 }
 
+                // If once conversion is completed, delete uploaded input files from cache:
+                for (doc in files) {
+                    try {
+                        doc.tempFilePath?.let { path ->
+                            val f = File(path)
+                            if (f.exists()) {
+                                f.delete()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
+                    _uploadedFiles.value = emptyList() // Uploaded files are deleted from the input queue!
                     _processingProgress.value = 1.0f
                     _isProcessing.value = false
                     _lastResult.value = result
@@ -567,5 +721,42 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch(Dispatchers.IO) {
             historyDao.clearAll()
         }
+    }
+
+    fun renameOutputFile(oldFile: File, newNameWithoutExt: String): File? {
+        val cleanName = newNameWithoutExt.trim().replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        if (cleanName.isBlank()) return null
+        val ext = oldFile.extension
+        val newFileName = if (ext.isNotEmpty()) "$cleanName.$ext" else cleanName
+        val newFile = File(oldFile.parentFile, newFileName)
+
+        if (oldFile.renameTo(newFile)) {
+            val currentResult = _lastResult.value
+            if (currentResult != null) {
+                val updatedFiles = currentResult.outputFiles.map { f ->
+                    if (f.absolutePath == oldFile.absolutePath) newFile else f
+                }
+                _lastResult.value = currentResult.copy(outputFiles = updatedFiles)
+            }
+
+            val currentDoc = _viewingDoc.value
+            if (currentDoc?.tempFilePath == oldFile.absolutePath) {
+                _viewingDoc.value = currentDoc.copy(
+                    name = newFileName,
+                    tempFilePath = newFile.absolutePath,
+                    uri = Uri.fromFile(newFile)
+                )
+            }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    historyDao.updateFilePathAndName(oldFile.absolutePath, newFile.absolutePath, newFileName)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            return newFile
+        }
+        return null
     }
 }

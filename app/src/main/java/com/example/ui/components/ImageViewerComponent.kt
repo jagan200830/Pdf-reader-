@@ -77,56 +77,58 @@ fun ImageViewerComponent(
             .testTag("image_viewer_component")
     ) {
         // Zoom Controls Header
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+        if (!isFullscreen) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp
             ) {
-                Text(
-                    text = "Zoom: ${(scale * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (scale > 1f) IndigoPrimary else MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                IconButton(
-                    onClick = {
-                        scale = (scale - 0.25f).coerceAtLeast(1f)
-                        if (scale == 1f) {
-                            offsetX = 0f
-                            offsetY = 0f
-                        }
-                    },
-                    enabled = scale > 1f
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out")
-                }
-
-                IconButton(
-                    onClick = { scale = (scale + 0.25f).coerceAtMost(4f) },
-                    enabled = scale < 4f
-                ) {
-                    Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In")
-                }
-
-                if (scale > 1.05f) {
-                    IconButton(onClick = { scale = 1f; offsetX = 0f; offsetY = 0f }) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset Zoom")
-                    }
-                }
-
-                IconButton(onClick = onToggleFullscreen) {
-                    Icon(
-                        imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                        contentDescription = "Toggle Fullscreen"
+                    Text(
+                        text = "Zoom: ${(scale * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (scale > 1f) IndigoPrimary else MaterialTheme.colorScheme.onSurface
                     )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    IconButton(
+                        onClick = {
+                            scale = (scale - 0.25f).coerceAtLeast(1f)
+                            if (scale == 1f) {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
+                        },
+                        enabled = scale > 1f
+                    ) {
+                        Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out")
+                    }
+
+                    IconButton(
+                        onClick = { scale = (scale + 0.25f).coerceAtMost(4f) },
+                        enabled = scale < 4f
+                    ) {
+                        Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In")
+                    }
+
+                    if (scale > 1.05f) {
+                        IconButton(onClick = { scale = 1f; offsetX = 0f; offsetY = 0f }) {
+                            Icon(Icons.Default.RestartAlt, contentDescription = "Reset Zoom")
+                        }
+                    }
+
+                    IconButton(onClick = onToggleFullscreen) {
+                        Icon(
+                            imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                            contentDescription = "Toggle Fullscreen"
+                        )
+                    }
                 }
             }
         }
@@ -152,6 +154,7 @@ fun ImageViewerComponent(
                 }
                 .pointerInput(Unit) {
                     detectTapGestures(
+                        onTap = { onToggleFullscreen() },
                         onDoubleTap = {
                             if (scale > 1.2f) {
                                 scale = 1f; offsetX = 0f; offsetY = 0f

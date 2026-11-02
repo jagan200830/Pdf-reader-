@@ -175,113 +175,115 @@ fun PdfViewerComponent(
             .testTag("pdf_viewer_component")
     ) {
         // Navigation & Zoom controls header
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp,
-            shadowElevation = 3.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+        if (!isFullscreen) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                shadowElevation = 3.dp
             ) {
-                // Prev button
-                IconButton(
-                    onClick = { if (currentPage > 0) currentPage-- },
-                    enabled = currentPage > 0,
-                    modifier = Modifier.size(38.dp).testTag("pdf_prev_page")
-                ) {
-                    Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Page")
-                }
-
-                // Page indicator (clickable to jump)
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                Row(
                     modifier = Modifier
-                        .clickable {
-                            jumpPageInput = "${currentPage + 1}"
-                            showJumpDialog = true
-                        }
-                        .padding(horizontal = 4.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Page ${currentPage + 1} of $totalPages",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
+                    // Prev button
+                    IconButton(
+                        onClick = { if (currentPage > 0) currentPage-- },
+                        enabled = currentPage > 0,
+                        modifier = Modifier.size(38.dp).testTag("pdf_prev_page")
+                    ) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Page")
+                    }
 
-                // Next button
-                IconButton(
-                    onClick = { if (currentPage < totalPages - 1) currentPage++ },
-                    enabled = currentPage < totalPages - 1,
-                    modifier = Modifier.size(38.dp).testTag("pdf_next_page")
-                ) {
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Next Page")
-                }
+                    // Page indicator (clickable to jump)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .clickable {
+                                jumpPageInput = "${currentPage + 1}"
+                                showJumpDialog = true
+                            }
+                            .padding(horizontal = 4.dp)
+                    ) {
+                        Text(
+                            text = "Page ${currentPage + 1} of $totalPages",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
 
-                Spacer(modifier = Modifier.weight(1f))
+                    // Next button
+                    IconButton(
+                        onClick = { if (currentPage < totalPages - 1) currentPage++ },
+                        enabled = currentPage < totalPages - 1,
+                        modifier = Modifier.size(38.dp).testTag("pdf_next_page")
+                    ) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Next Page")
+                    }
 
-                // Zoom Out
-                IconButton(
-                    onClick = {
-                        scale = (scale - 0.25f).coerceAtLeast(1f)
-                        if (scale == 1f) {
-                            offsetX = 0f
-                            offsetY = 0f
-                        }
-                    },
-                    enabled = scale > 1f,
-                    modifier = Modifier.size(36.dp).testTag("pdf_zoom_out")
-                ) {
-                    Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out", modifier = Modifier.size(20.dp))
-                }
+                    Spacer(modifier = Modifier.weight(1f))
 
-                // Zoom Level Badge
-                Text(
-                    text = "${(scale * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (scale > 1f) IndigoPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-
-                // Zoom In
-                IconButton(
-                    onClick = {
-                        scale = (scale + 0.25f).coerceAtMost(4f)
-                    },
-                    enabled = scale < 4f,
-                    modifier = Modifier.size(36.dp).testTag("pdf_zoom_in")
-                ) {
-                    Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In", modifier = Modifier.size(20.dp))
-                }
-
-                // Reset Zoom
-                if (scale > 1.05f) {
+                    // Zoom Out
                     IconButton(
                         onClick = {
-                            scale = 1f
-                            offsetX = 0f
-                            offsetY = 0f
+                            scale = (scale - 0.25f).coerceAtLeast(1f)
+                            if (scale == 1f) {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
                         },
-                        modifier = Modifier.size(36.dp)
+                        enabled = scale > 1f,
+                        modifier = Modifier.size(36.dp).testTag("pdf_zoom_out")
                     ) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset Zoom", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out", modifier = Modifier.size(20.dp))
                     }
-                }
 
-                // Fullscreen button
-                IconButton(
-                    onClick = onToggleFullscreen,
-                    modifier = Modifier.size(38.dp).testTag("pdf_toggle_fullscreen")
-                ) {
-                    Icon(
-                        imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                        contentDescription = "Toggle Fullscreen"
+                    // Zoom Level Badge
+                    Text(
+                        text = "${(scale * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (scale > 1f) IndigoPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
+
+                    // Zoom In
+                    IconButton(
+                        onClick = {
+                            scale = (scale + 0.25f).coerceAtMost(4f)
+                        },
+                        enabled = scale < 4f,
+                        modifier = Modifier.size(36.dp).testTag("pdf_zoom_in")
+                    ) {
+                        Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In", modifier = Modifier.size(20.dp))
+                    }
+
+                    // Reset Zoom
+                    if (scale > 1.05f) {
+                        IconButton(
+                            onClick = {
+                                scale = 1f
+                                offsetX = 0f
+                                offsetY = 0f
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.RestartAlt, contentDescription = "Reset Zoom", modifier = Modifier.size(20.dp))
+                        }
+                    }
+
+                    // Fullscreen button
+                    IconButton(
+                        onClick = onToggleFullscreen,
+                        modifier = Modifier.size(38.dp).testTag("pdf_toggle_fullscreen")
+                    ) {
+                        Icon(
+                            imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                            contentDescription = "Toggle Fullscreen"
+                        )
+                    }
                 }
             }
         }
@@ -308,6 +310,9 @@ fun PdfViewerComponent(
                 }
                 .pointerInput(Unit) {
                     detectTapGestures(
+                        onTap = {
+                            onToggleFullscreen()
+                        },
                         onDoubleTap = {
                             if (scale > 1.2f) {
                                 scale = 1f
@@ -333,13 +338,14 @@ fun PdfViewerComponent(
                             translationY = offsetY
                         ),
                     shape = if (isFullscreen) RoundedCornerShape(0.dp) else RoundedCornerShape(8.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isFullscreen) 0.dp else 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                 ) {
                     Image(
                         bitmap = currentBitmap!!.asImageBitmap(),
                         contentDescription = "PDF Page ${currentPage + 1}",
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize().background(Color.White)
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }

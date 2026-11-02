@@ -61,11 +61,17 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
 import com.example.model.DocTool
 import com.example.model.DocumentItem
 import com.example.model.ToolId
 import com.example.ui.components.FileChip
 import com.example.ui.components.ResultComparisonCard
+import com.example.ui.theme.CosmicNeonCyan
+import com.example.ui.theme.CosmicNeonMagenta
+import com.example.ui.theme.CosmicNeonPurple
+import com.example.ui.theme.CosmicTextPrimary
+import com.example.ui.theme.CosmicTextSecondary
 import com.example.ui.theme.IndigoPrimary
 import com.example.viewmodel.DocMasterViewModel
 import java.io.File
@@ -166,12 +172,50 @@ fun ToolExecutionScreen(
             }
         }
 
-        // Selected Files section
+        // If conversion is completed, show result at the top
+        if (lastResult != null) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0x2510B981),
+                    border = BorderStroke(1.dp, Color(0x5510B981)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "✓ Conversion completed • Uploaded input file cleared",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF34D399)
+                        )
+                    }
+                }
+            }
+
+            item {
+                ResultComparisonCard(
+                    result = lastResult!!,
+                    onViewDocument = { file -> onPreviewFile(file) },
+                    onZipBundle = {
+                        viewModel.openTool(DocTool.ALL_TOOLS.first { it.id == ToolId.BATCH_ZIP })
+                    },
+                    onRenameFile = { oldFile, newName ->
+                        viewModel.renameOutputFile(oldFile, newName)
+                    }
+                )
+            }
+        }
+
+        // Selected Files section (for converting another file or current files)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+                border = BorderStroke(1.dp, Color(0x25E9D5FF)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -265,8 +309,10 @@ fun ToolExecutionScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+                    border = BorderStroke(1.dp, Color(0x25E9D5FF)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -463,8 +509,10 @@ fun ToolExecutionScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+                    border = BorderStroke(1.dp, Color(0x25E9D5FF)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -487,19 +535,6 @@ fun ToolExecutionScreen(
                         )
                     }
                 }
-            }
-        }
-
-        // Result Card
-        if (lastResult != null) {
-            item {
-                ResultComparisonCard(
-                    result = lastResult!!,
-                    onViewDocument = { file -> onPreviewFile(file) },
-                    onZipBundle = {
-                        viewModel.openTool(DocTool.ALL_TOOLS.first { it.id == ToolId.BATCH_ZIP })
-                    }
-                )
             }
         }
 

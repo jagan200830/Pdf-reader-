@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,12 +26,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.DocTool
+import com.example.ui.theme.CosmicTextPrimary
+import com.example.ui.theme.CosmicTextSecondary
 
 @Composable
 fun ToolCard(
@@ -42,14 +46,15 @@ fun ToolCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable { onClick() }
             .testTag("tool_card_${tool.id.name.lowercase()}"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color(0x351B0E3D)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, Color(0x28E9D5FF)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         if (isGridView) {
             // Stacked Grid Layout: Icon at top so full card width is available for the title
@@ -67,7 +72,7 @@ fun ToolCard(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(tool.accentColor.copy(alpha = 0.14f)),
+                            .background(tool.accentColor.copy(alpha = 0.22f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -80,7 +85,7 @@ fun ToolCard(
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = tool.accentColor.copy(alpha = 0.12f)
+                        color = tool.accentColor.copy(alpha = 0.18f)
                     ) {
                         Text(
                             text = tool.category.title.replace(" Tools", ""),
@@ -96,7 +101,6 @@ fun ToolCard(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Title has full width of card and wraps up to 2 lines without truncation
                 Text(
                     text = tool.title,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -106,7 +110,7 @@ fun ToolCard(
                     ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = CosmicTextPrimary
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -117,7 +121,7 @@ fun ToolCard(
                         fontSize = 11.5.sp,
                         lineHeight = 15.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = CosmicTextSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -135,7 +139,7 @@ fun ToolCard(
                     modifier = Modifier
                         .size(50.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(tool.accentColor.copy(alpha = 0.14f)),
+                        .background(tool.accentColor.copy(alpha = 0.22f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -159,7 +163,7 @@ fun ToolCard(
                             ),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = CosmicTextPrimary,
                             modifier = Modifier.weight(1f, fill = false)
                         )
 
@@ -167,7 +171,7 @@ fun ToolCard(
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = tool.accentColor.copy(alpha = 0.12f)
+                            color = tool.accentColor.copy(alpha = 0.18f)
                         ) {
                             Text(
                                 text = tool.category.title.replace(" Tools", ""),
@@ -189,7 +193,7 @@ fun ToolCard(
                             fontSize = 12.5.sp,
                             lineHeight = 17.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = CosmicTextSecondary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -200,7 +204,7 @@ fun ToolCard(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = CosmicTextSecondary.copy(alpha = 0.6f),
                     modifier = Modifier.size(20.dp)
                 )
             }

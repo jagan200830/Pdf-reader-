@@ -17,6 +17,9 @@ interface HistoryDao {
     @Query("DELETE FROM processed_files WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("UPDATE processed_files SET filePath = :newPath, fileName = :newName WHERE filePath = :oldPath")
+    suspend fun updateFilePathAndName(oldPath: String, newPath: String, newName: String)
+
     @Query("DELETE FROM processed_files")
     suspend fun clearAll()
 }

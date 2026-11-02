@@ -1,7 +1,13 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.example.R
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,9 +87,10 @@ fun AboutScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+                border = BorderStroke(1.dp, Color(0x25E9D5FF)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -93,20 +100,25 @@ fun AboutScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(IndigoPrimary, VioletSecondary)
-                                )
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.Black)
+                            .border(
+                                width = 1.2.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(Color(0xFF818CF8), Color(0xFFC084FC), Color(0xFF38BDF8))
+                                ),
+                                shape = RoundedCornerShape(20.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FolderShared,
-                            contentDescription = "DocMaster Logo",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_wolf_logo),
+                            contentDescription = "DocMaster Wolf Logo",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(RoundedCornerShape(18.dp))
                         )
                     }
 
@@ -183,9 +195,10 @@ fun PillarCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x35190C3D)),
+        border = BorderStroke(1.dp, Color(0x25E9D5FF)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
