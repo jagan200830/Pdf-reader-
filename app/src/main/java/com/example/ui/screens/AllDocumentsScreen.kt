@@ -32,6 +32,14 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.History
+import com.example.data.local.ProcessedFileEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -100,6 +108,7 @@ fun AllDocumentsScreen(
 
     val allDocs by viewModel.allDeviceDocuments.collectAsState()
     val isLoading by viewModel.isLoadingDocuments.collectAsState()
+    val recentFiles by viewModel.recentFiles.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
@@ -116,10 +125,14 @@ fun AllDocumentsScreen(
         }
     }
 
-    // Filter documents by format and search query
+    // Recent document names set for fast filter lookup
+    val recentFileNames = remember(recentFiles) { recentFiles.map { it.fileName }.toSet() }
+
+    // Filter documents by format, recent access, and search query
     val filteredDocs = allDocs.filter { doc ->
         val ext = doc.name.substringAfterLast(".", "").lowercase()
         val matchesCategory = when (selectedFilter) {
+            "Recent" -> recentFileNames.contains(doc.name)
             "PDF" -> ext == "pdf"
             "PPTX" -> ext in listOf("pptx", "ppt")
             "Word" -> ext in listOf("docx", "doc")
@@ -319,6 +332,122 @@ fun AllDocumentsScreen(
                 }
             }
 
+            // Recently Accessed Section
+            if (recentFiles.isNotEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = CosmicNeonCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recently Accessed",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = CosmicTextPrimary
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "${recentFiles.size} items",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CosmicTextMuted
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            for (item in recentFiles.take(8)) {
+                                val ext = item.fileType.lowercase()
+                                val chipColor = when (ext) {
+                                    "pdf" -> ColorPdf
+                                    "pptx", "ppt" -> ColorPpt
+                                    "docx", "doc" -> ColorWord
+                                    "xlsx", "xls", "csv" -> ColorExcel
+                                    else -> CosmicNeonCyan
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color(0x35190C3D),
+                                    border = BorderStroke(1.dp, chipColor.copy(alpha = 0.35f)),
+                                    modifier = Modifier.clickable {
+                                        val file = File(item.filePath)
+                                        if (file.exists()) {
+                                            onViewDocument(
+                                                DocumentItem(
+                                                    name = item.fileName,
+                                                    uri = Uri.fromFile(file),
+                                                    sizeBytes = item.processedSizeBytes,
+                                                    mimeType = item.mimeType,
+                                                    tempFilePath = item.filePath
+                                                )
+                                            )
+                                        } else {
+                                            Toast.makeText(context, "Opening ${item.fileName}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(RoundedCornerShape(7.dp))
+                                                .background(chipColor.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = when (ext) {
+                                                    "pdf" -> Icons.Default.PictureAsPdf
+                                                    "csv", "xlsx", "xls" -> Icons.Default.TableChart
+                                                    else -> Icons.Default.Description
+                                                },
+                                                contentDescription = null,
+                                                tint = chipColor,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = item.fileName,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                                color = CosmicTextPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(item.timestamp)),
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = CosmicTextMuted
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Search Bar
             item {
                 Box(
@@ -372,11 +501,13 @@ fun AllDocumentsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val filters = listOf(
                         "All" to Color.White,
+                        "Recent" to CosmicNeonCyan,
                         "PDF" to ColorPdf,
                         "PPTX" to ColorPpt,
                         "Word" to ColorWord,

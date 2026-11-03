@@ -339,6 +339,24 @@ class DocMasterViewModel(application: Application) : AndroidViewModel(applicatio
             }
             if (file == null || !file.exists()) return@launch
 
+            // Track accessed document in Recent history
+            try {
+                val extUpper = file.extension.uppercase().ifEmpty { "DOC" }
+                historyDao.insert(
+                    ProcessedFileEntity(
+                        fileName = item.name,
+                        toolType = "Viewed",
+                        fileType = extUpper,
+                        filePath = file.absolutePath,
+                        originalSizeBytes = item.sizeBytes,
+                        processedSizeBytes = file.length(),
+                        mimeType = item.mimeType
+                    )
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             val ext = file.extension.lowercase()
             when {
                 ext in listOf("xlsx", "xls", "csv") -> {
